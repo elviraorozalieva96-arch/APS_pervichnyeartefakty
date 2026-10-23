@@ -7,8 +7,7 @@ title Вариант 9: ИБ ИЗ1 ПЗ2 Д1О32 Д1ОО5 Д2П1 Д2Б5 ОР1 О
 
 participant "Источник\n(ИБ, ИЗ1)" as Source
 participant "ДП\n(Д1О32, Д1ОО5)" as DP
-participant "Буфер\n(БП)" as Buffer
-participant "ДВ\n(Д2Б5, Д2П1)" as DV
+participant "Б
 participant "Прибор\n(ПЗ2)" as Device
 participant "Отказ" as Reject
 
@@ -111,67 +110,7 @@ DV --> DP: Свободных приборов нет
 deactivate DV
 
 DP --> Source: Заявка ожидает в очереди
-deactivate DP
 
-== Ожидание и выборка из буфера (Д2Б5) ==
-
-loop Пока буфер не пуст и есть заявки
-
-  Device -> DV: Прибор освободился\n(триггер)
-  activate DV
-
-  DV -> Buffer: Проверить активный пакет
-  activate Buffer
-  Buffer --> DV: Пакет пуст / не пуст
-  deactivate Buffer
-
-  alt Пакет не пуст
-    DV -> Buffer: Выбрать заявку из пакета (Д2Б5)
-    activate Buffer
-    Buffer --> DV: Заявка
-    deactivate Buffer
-  else Пакет пуст
-    DV -> Buffer: Определить приоритетный источник\n(наименьший номер)
-    activate Buffer
-    Buffer --> DV: Номер источника
-    deactivate Buffer
-
-    DV -> Buffer: Сформировать пакет (Д2Б5)\nиз всех заявок этого источника
-    activate Buffer
-    Buffer --> DV: Пакет сформирован\n(не расширяем)
-    deactivate Buffer
-
-    DV -> Buffer: Выбрать заявку из пакета (Д2Б5)
-    activate Buffer
-    Buffer --> DV: Заявка
-    deactivate Buffer
-  end
-
-  DV -> Device: Назначить заявку (Д2П1)
-  activate Device
-  Device --> DV: Принято
-  deactivate Device
-
-  DV --> Device: Заявка назначена
-  deactivate DV
-
-  Device -> Device: Обслуживание (ПЗ2)
-  Device -> DV: Прибор свободен\n(триггер)
-  activate DV
-  DV -> DV: Проверить буфер
-  DV --> Device: Ожидание
-  deactivate DV
-
-end
-
-== Завершение обслуживания ==
-
-Device -> DV: Обслуживание завершено
-activate DV
-DV -> Buffer: Проверить буфер
-activate Buffer
-Buffer --> DV: Буфер пуст
-deactivate Buffer
 DV --> Device: Свободен
 deactivate DV
 
