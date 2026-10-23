@@ -1,0 +1,63 @@
+@startuml
+skinparam backgroundColor #FEFEFE
+skinparam ActivityBackgroundColor #FEFECE
+skinparam ActivityBorderColor black
+skinparam ArrowColor black
+
+title Flowchart с дорожками: Вариант 9
+
+|#LightBlue|Источник|
+start
+:Генерация заявки (ИЗ1);
+
+|#LightGreen|ДП|
+:Получение заявки;
+if (Буфер полон?) then (да)
+  :Отказ (Д1ОО5);
+  |#LightPink|Отказ|
+  :Заявка потеряна;
+  stop
+else (нет)
+  |#LightGreen|ДП|
+  :Постановка в конец очереди (Д1О32);
+  |#LightYellow|Буфер|
+  :Заявка в буфере;
+  |#LightGray|ДВ|
+  if (Есть свободный прибор?) then (да)
+    :Выбор заявки (Д2Б5);
+    :Назначение на прибор (Д2П1);
+    |#Orange|Прибор|
+    :Обслуживание (ПЗ2);
+    :Прибор свободен;
+    |#LightGray|ДВ|
+    if (Есть заявки в буфере?) then (да)
+      :Выбор заявки (Д2Б5);
+      :Назначение на прибор (Д2П1);
+      |#Orange|Прибор|
+      :Обслуживание (ПЗ2);
+    else (нет)
+      |#LightGray|ДВ|
+      :Прибор простаивает;
+    endif
+  else (нет)
+    |#LightGray|ДВ|
+    :Заявка ожидает;
+    |#LightYellow|Буфер|
+    :Ожидание освобождения прибора;
+    |#LightGray|ДВ|
+    :Триггер: прибор освободился;
+    if (Пакет не пуст?) then (да)
+      :Выбор из пакета (Д2Б5);
+    else (нет)
+      :Формирование нового пакета (Д2Б5);
+      :Выбор из пакета;
+    endif
+    :Назначение на прибор (Д2П1);
+    |#Orange|Прибор|
+    :Обслуживание (ПЗ2);
+    :Прибор свободен;
+  endif
+endif
+stop
+
+@enduml
