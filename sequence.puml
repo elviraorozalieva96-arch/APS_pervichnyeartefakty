@@ -1,0 +1,203 @@
+@startuml
+skinparam backgroundColor #FEFEFE
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam ParticipantPadding 15
+
+title Вариант 9: ИБ ИЗ1 ПЗ2 Д1О32 Д1ОО5 Д2П1 Д2Б5 ОР1 ОД3\n<size:12>Служба технической поддержки корпоративных клиентов</size>
+
+participant "Клиент\n(филиал)" as Client
+participant "Диспетчер\nприёма заявок\n(ДП)" as DP
+participant "Очередь заявок\n(Буфер)" as Queue
+participant "Планировщик\nобработки\n(ДВ)" as DV
+participant "Инженер\nтехподдержки\n(Прибор)" as Engineer
+participant "Отклонённая\nзаявка" as Reject
+
+note over Client, Reject
+  <b>Расшифровка кода:</b>
+  ИБ — бесконечный источник (клиенты)
+  ИЗ1 — пуассоновский поток заявок
+  ПЗ2 — равномерное время обслуживания
+  Д1О32 — постановка в очередь в конец (FIFO, со сдвигом)
+  Д1ОО5 — вновь пришедшая заявка получает отказ при полном буфере
+  Д2П1 — приоритет по номеру прибора
+  Д2Б5 — приоритет по номеру источника, пакетная обработка
+  ОР1 — сводная таблица результатов
+  ОД3 — временные диаграммы
+end note
+
+== HappyFlow: буфер свободен, инженер свободен ==
+
+Client -> Client: Генерация заявки\n(ИЗ1: экспоненциальные интервалы)
+Client -> DP: Запрос на поддержку
+activate DP
+DP --> Client: Заявка создана
+deactivate DP
+
+Client -> DP: Передача заявки в диспетчерскую
+activate DP
+
+DP -> Queue: Проверить свободное место
+activate Queue
+Queue --> DP: Место есть
+deactivate Queue
+
+DP -> Queue: Поставить заявку в конец очереди\n(Д1О32)
+activate Queue
+Queue --> DP: Заявка в очереди
+deactivate Queue
+
+DP -> DV: Уведомить о новой заявке
+activate DV
+
+DV -> Queue: Есть ли активный пакет?
+activate Queue
+Queue --> DV: Пакета нет
+deactivate Queue
+
+DV -> Queue: Определить приоритетный источник\n(наименьший номер)
+activate Queue
+Queue --> DV: Номер источника
+deactivate Queue
+
+DV -> Queue: Сформировать пакет\n(Д2Б5: все заявки этого источника)
+activate Queue
+Queue --> DV: Пакет сформирован (не расширяем)
+deactivate Queue
+
+DV -> Queue: Взять заявку из пакета\n(Д2Б5)
+activate Queue
+Queue --> DV: Заявка
+deactivate Queue
+
+DV -> Engineer: Назначить заявку\n(Д2П1: первый свободный по номеру)
+activate Engineer
+Engineer --> DV: Принято
+deactivate Engineer
+
+DV --> DP: Заявка назначена инженеру
+deactivate DV
+
+DP --> Client: Заявка принята в обработку
+deactivate DP
+
+Engineer -> Engineer: Обслуживание\n(ПЗ2: равномерное распределение)
+Engineer -> DV: Обслуживание завершено\n(триггер от любого прибора)
+activate DV
+DV -> Queue: Проверить очередь
+activate Queue
+Queue --> DV: Очередь пуста
+deactivate Queue
+DV --> Engineer: Свободен
+deactivate DV
+
+== Альтернатива 1: Буфер полон — отказ (Д1ОО5) ==
+
+Client -> DP: Новая заявка
+activate DP
+
+DP -> Queue: Проверить свободное место
+activate Queue
+Queue --> DP: Буфер полон
+deactivate Queue
+
+DP -> Reject: Отказ (Д1ОО5)\nвновь пришедшая заявка удаляется
+activate Reject
+Reject --> DP: Отказ учтён источнику
+deactivate Reject
+
+DP --> Client: Отказ в обслуживании\n«Все операторы заняты»
+deactivate DP
+
+== Альтернатива 2: Все инженеры заняты — заявка ожидает ==
+
+Client -> DP: Новая заявка
+activate DP
+
+DP -> Queue: Проверить свободное место
+activate Queue
+Queue --> DP: Место есть
+deactivate Queue
+
+DP -> Queue: Поставить в конец очереди (Д1О32)
+activate Queue
+Queue --> DP: Заявка в очереди
+deactivate Queue
+
+DP -> DV: Уведомить о новой заявке
+activate DV
+DV -> DV: Проверить свободных инженеров
+note right of DV: Все инженеры заняты
+DV --> DP: Свободных нет
+deactivate DV
+
+DP --> Client: Заявка ожидает в очереди
+deactivate DP
+
+== Ожидание и выборка из буфера (Д2Б5) ==
+
+loop Пока в очереди есть заявки
+
+  Engineer -> DV: Инженер освободился\n(триггер от любого прибора)
+  activate DV
+
+  DV -> Queue: Есть активный пакет?
+  activate Queue
+  Queue --> DV: Пакет не пуст / пуст
+  deactivate Queue
+
+  alt Активный пакет не пуст
+    note right of DV: Все инженеры продолжают\nобслуживать ТОТ ЖЕ пакет
+    DV -> Queue: Взять заявку из активного пакета\n(Д2Б5)
+    activate Queue
+    Queue --> DV: Заявка
+    deactivate Queue
+  else Активный пакет пуст
+    DV -> Queue: Определить приоритетный источник\n(наименьший номер среди заявок)
+    activate Queue
+    Queue --> DV: Номер источника
+    deactivate Queue
+
+    DV -> Queue: Сформировать новый пакет (Д2Б5)
+    activate Queue
+    Queue --> DV: Пакет сформирован\n(снимок, не расширяем)
+    deactivate Queue
+
+    DV -> Queue: Взять заявку из пакета (Д2Б5)
+    activate Queue
+    Queue --> DV: Заявка
+    deactivate Queue
+  end
+
+  DV -> Engineer: Назначить заявку\n(Д2П1: первый свободный по номеру)
+  activate Engineer
+  Engineer --> DV: Принято
+  deactivate Engineer
+
+  DV --> Engineer: Заявка назначена
+  deactivate DV
+
+  Engineer -> Engineer: Обслуживание (ПЗ2)
+
+  note over Engineer
+    Пока пакет не исчерпан, каждый
+    освободившийся инженер берёт
+    заявку из ТОГО ЖЕ пакета (Д2Б5).
+    Новые заявки от того же источника
+    образуют НОВЫЙ пакет.
+  end note
+
+end
+
+== Завершение работы ==
+
+Engineer -> DV: Обслуживание завершено
+activate DV
+DV -> Queue: Проверить очередь
+activate Queue
+Queue --> DV: Очередь пуста
+deactivate Queue
+DV --> Engineer: Свободен
+deactivate DV
+
+@enduml
