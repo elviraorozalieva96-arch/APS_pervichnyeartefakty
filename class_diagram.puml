@@ -1,0 +1,152 @@
+@startuml
+skinparam backgroundColor #FEFEFE
+skinparam classAttributeIconSize 0
+skinparam ClassBorderColor black
+skinparam ClassBackgroundColor #FEFECE
+
+title Вариант 9: ИБ ИЗ1 ПЗ2 Д1О32 Д1ОО5 Д2П1 Д2Б5 ОР1 ОД3\n<size:12>Служба технической поддержки корпоративных клиентов</size>
+
+class Client {
+  - clientId: int
+  - interArrivalLaw: Law
+  + Client(int id, Law law)
+  + generateRequest(): Request
+  + getClientId(): int
+}
+
+class Request {
+  - requestId: int
+  - clientId: int
+  - arrivalTime: double
+  - startServiceTime: double
+  - endServiceTime: double
+  + Request(int id, int clientId, double time)
+  + getRequestId(): int
+  + getClientId(): int
+  + getArrivalTime(): double
+  + setStartServiceTime(double): void
+  + setEndServiceTime(double): void
+  + getWaitTime(): double
+  + getServiceTime(): double
+  + getTotalTime(): double
+}
+
+class Queue {
+  - capacity: int
+  - requests: List<Request>
+  - activePackage: List<Request>
+  - packageSource: int
+  + Queue(int capacity)
+  + isFull(): boolean
+  + isEmpty(): boolean
+  + putRequest(Request req): boolean
+  + removeRequest(int position): Request
+  + shiftAfterRemoval(int position): void
+  + getPrioritySource(): int
+  + formPackage(int clientId): void
+  + isPackageEmpty(): boolean
+  + getPackageRequest(): Request
+  + hasActivePackage(): boolean
+  + getSize(): int
+}
+
+class Engineer {
+  - engineerId: int
+  - busy: boolean
+  - serviceLaw: Law
+  - currentRequest: Request
+  + Engineer(int id, Law law)
+  + isBusy(): boolean
+  + startService(Request req): void
+  + finishService(): Request
+  + getEngineerId(): int
+}
+
+class DispatcherPost {
+  - queue: Queue
+  - rejectCount: int
+  + DispatcherPost(Queue q)
+  + receiveRequest(Request req): boolean
+  + getRejectCount(): int
+}
+
+class DispatcherSelect {
+  - queue: Queue
+  - engineers: List<Engineer>
+  - selectLaw: int
+  - deviceLaw: int
+  + DispatcherSelect(Queue q, List<Engineer> e)
+  + onEngineerFree(Engineer eng): void
+  + selectRequest(): Request
+  + assignToEngineer(Request req): Engineer
+  + findFreeEngineer(): Engineer
+}
+
+class Statistics {
+  - generated: Map<int, int>
+  - rejected: Map<int, int>
+  - totalWaitTime: Map<int, double>
+  - totalServiceTime: Map<int, double>
+  - waitTimeSquared: Map<int, double>
+  - serviceTimeSquared: Map<int, double>
+  - engineerBusyTime: Map<int, double>
+  + recordGenerated(int clientId): void
+  + recordRejected(int clientId): void
+  + recordWait(int clientId, double time): void
+  + recordService(int clientId, double time): void
+  + recordEngineerBusy(int id, double time): void
+  + getSummaryTable(): Table
+  + getTimeDiagrams(): Diagram
+}
+
+class System {
+  - clients: List<Client>
+  - queue: Queue
+  - engineers: List<Engineer>
+  - dispatcherPost: DispatcherPost
+  - dispatcherSelect: DispatcherSelect
+  - statistics: Statistics
+  - currentTime: double
+  + System(config: Config)
+  + start(): void
+  + step(): void
+  + getStatistics(): Statistics
+}
+
+Client "1" --> "*" Request : генерирует
+DispatcherPost "1" --> "1" Queue : ссылка
+DispatcherSelect "1" --> "1" Queue : ссылка
+DispatcherSelect "1" --> "*" Engineer : ссылка
+DispatcherSelect "1" --> "1" Statistics : ссылка
+System "1" *-- "1" DispatcherPost
+System "1" *-- "1" DispatcherSelect
+System "1" *-- "1" Queue
+System "1" *-- "*" Engineer
+System "1" *-- "*" Client
+System "1" *-- "1" Statistics
+
+note right of DispatcherPost
+  <b>Д1О32:</b> putRequest() ставит
+  заявку в конец очереди.
+  <b>Д1ОО5:</b> если очередь полна,
+  возвращает false (отказ).
+end note
+
+note right of DispatcherSelect
+  <b>Д2Б5:</b> selectRequest()
+  определяет приоритетный источник,
+  формирует пакет, выбирает заявку.
+  <b>Д2П1:</b> findFreeEngineer()
+  ищет первого свободного по номеру.
+end note
+
+note right of Queue
+  <b>Д1О32:</b> removeRequest()
+  удаляет заявку и вызывает
+  shiftAfterRemoval() для сдвига.
+  <b>Д2Б5:</b> formPackage() создаёт
+  снимок заявок одного источника
+  (не расширяется).
+end note
+
+@enduml
